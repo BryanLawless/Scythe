@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -32,7 +31,7 @@ func New() providers.Provider {
 	}
 }
 
-func (y *youtubeProvider) Start(ctx context.Context) ([]string, error) {
+func (y *youtubeProvider) Start(ctx context.Context) ([]common.Media, error) {
 	urlSafeSearchTerm := utility.UrlSafeSearchPrompt()
 
 	videos, err := y.scrapeYoutube(ctx, urlSafeSearchTerm)
@@ -49,31 +48,44 @@ func (y *youtubeProvider) Start(ctx context.Context) ([]string, error) {
 		"Uploaded",
 	}, map[string]int{"Title": 40, "Channel": 15})
 
+	if len(selectedResults) == 0 {
+		return nil, nil
+	}
+
 	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 	s.Suffix = " Gathering selected resources..."
 	s.Start()
 
-	youtubeVideoLinks := []string{}
+	youtubeMedia := []common.Media{}
 	for _, result := range selectedResults {
-		video, err := y.Client.GetVideo(fmt.Sprintf(videoUrl, result))
+		videoLink := fmt.Sprintf(videoUrl, result)
+		video, err := y.Client.GetVideo(videoLink)
 		if err != nil {
 			return nil, fmt.Errorf("error getting video: %w", err)
 		}
 
 		formats := video.Formats.WithAudioChannels()
-		videoLink, err := y.Client.GetStreamURL(video, &formats[0])
+		extension := utility.GetExtensionFromMime(formats[0].MimeType)
+		sourceLink, err := y.Client.GetStreamURL(video, &formats[0])
 		if err != nil {
 			return nil, fmt.Errorf("error getting video link: %w", err)
 		}
 
-		youtubeVideoLinks = append(youtubeVideoLinks, videoLink)
+		youtubeMedia = append(youtubeMedia, common.Media{
+			URL:       videoLink,
+			Name:      video.Title,
+			Provider:  "youtube",
+			Category:  "video",
+			Extension: extension,
+			SourceURL: sourceLink,
+		})
 	}
 
 	s.Stop()
 
 	utility.WriteToConsole("Added selected links to download list", "success")
 
-	return youtubeVideoLinks, nil
+	return youtubeMedia, nil
 }
 
 func (y *youtubeProvider) scrapeYoutube(ctx context.Context, urlSafeSearchTerm string) ([]map[string]string, error) {
@@ -86,7 +98,7 @@ func (y *youtubeProvider) scrapeYoutube(ctx context.Context, urlSafeSearchTerm s
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
 
 	if request.Response.StatusCode != 200 {

@@ -27,7 +27,7 @@ type OperateTasks struct {
 	ContentLength int64
 }
 
-type DownloadConfig struct {
+type Download struct {
 	URL           string
 	Workers       int
 	Filename      string

@@ -1,25 +1,27 @@
 package utility
 
 import (
+	"Scythe/core/common"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
-	"time"
 )
-
-func Sleep(seconds int) {
-	time.Sleep(time.Duration(seconds) * time.Second)
-}
 
 func NotPrev(current, previous string) bool {
 	return current != previous && current != ""
 }
 
-func RoundFloat(value float64, precision uint) float64 {
-	ratio := math.Pow(10, float64(precision))
-	return math.Round(value*ratio) / ratio
+func MatchOne(pattern string, text string) []string {
+	re := regexp.MustCompile(pattern)
+	value := re.FindStringSubmatch(text)
+
+	if value != nil {
+		return value
+	}
+
+	return nil
 }
 
 func Contains(elements []string, value string) bool {
@@ -60,10 +62,6 @@ func RemoveDuplicates(str_slice []string) []string {
 	}
 
 	return list
-}
-
-func AppendToStart(slice []string, value string) []string {
-	return append([]string{value}, slice...)
 }
 
 func PartialDirectory(targetDirectory, filename string, processes int) string {
@@ -110,4 +108,41 @@ func CutLongText(text string, max int) string {
 	}
 
 	return text
+}
+
+func GetExtensionFromMime(mime string) string {
+	types := MatchOne(`(?i)(\w+)/(\w+);`, mime)
+	if types == nil {
+		return ""
+	}
+
+	return types[2]
+}
+
+func FilenameSafe(title string) string {
+	title = strings.TrimSpace(title)
+	filter := []string{" ", ":", "/", "\\", "?", "*", "\"", "<", ">", "|", "(", ")", "'", "!", "."}
+
+	for _, item := range filter {
+		switch item {
+		case " ":
+			title = strings.ReplaceAll(title, item, "_")
+		case ".":
+			title = strings.ReplaceAll(title, item, "")
+		default:
+			title = strings.ReplaceAll(title, item, "")
+		}
+	}
+
+	return title
+}
+
+func MediaToResults(media []common.Media) []string {
+	results := make([]string, len(media))
+
+	for index, item := range media {
+		results[index] = fmt.Sprintf("%d-[%s](%s)", index, item.Name, item.URL)
+	}
+
+	return results
 }

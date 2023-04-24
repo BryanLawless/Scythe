@@ -1,12 +1,13 @@
 package providers
 
 import (
+	"Scythe/core/common"
 	"context"
 	"sync"
 )
 
 type Provider interface {
-	Start(ctx context.Context) ([]string, error)
+	Start(ctx context.Context) ([]common.Media, error)
 }
 
 type ProviderInfo struct {
@@ -37,15 +38,15 @@ func ListProvidersByCategory(category string) []string {
 	return providers
 }
 
-func Start(ctx context.Context, provider string) ([]string, error) {
+func Start(ctx context.Context, provider string) ([]common.Media, error) {
 	if val, ok := Providers[provider]; ok {
-		links, err := val.Provider.Start(ctx)
+		media, err := val.Provider.Start(ctx)
 
 		if err != nil {
 			return nil, err
 		}
 
-		return links, nil
+		return media, nil
 	}
 
 	return nil, nil

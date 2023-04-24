@@ -1,7 +1,6 @@
 package utility
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,28 +8,38 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 )
 
-func Prompt(prompt string) string {
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Fprintf(color.Output, "%s%s[INPUT]%s %s: ", BlackBg, Purple, ColorReset, prompt)
-
-	scanner.Scan()
-
-	err := scanner.Err()
-	if err != nil {
-		return ""
-	}
-
-	return strings.Trim(scanner.Text(), "")
-}
-
-func ExitWrapper(err error) {
+func exitWrapper(err error) {
 	if err != nil && err == terminal.InterruptErr {
 		os.Exit(0)
 	}
+}
+
+func SearchPrompt() string {
+	text := ""
+	prompt := &survey.Question{
+		Prompt: &survey.Input{
+			Message: "Search terms:",
+			Help:    "Enter the search terms you would like to use when searching for links.",
+		},
+		Validate: func(val interface{}) error {
+			if str, ok := val.(string); !ok || len(str) > 64 {
+				return fmt.Errorf("search terms must be less than 64 characters long")
+			}
+
+			return nil
+		},
+	}
+
+	exitWrapper(survey.Ask([]*survey.Question{prompt}, &text))
+
+	return text
+}
+
+func UrlSafeSearchPrompt() string {
+	return strings.ReplaceAll(SearchPrompt(), " ", "+")
 }
 
 func StartActionPrompt() string {
@@ -40,7 +49,7 @@ func StartActionPrompt() string {
 		Options: []string{"Browse", "Download", "Exit"},
 	}
 
-	ExitWrapper(survey.AskOne(prompt, &option))
+	exitWrapper(survey.AskOne(prompt, &option))
 
 	return option
 }
@@ -49,10 +58,10 @@ func MediaCategoryPrompt() string {
 	media := ""
 	prompt := &survey.Select{
 		Message: "Select a category:",
-		Options: []string{"Videos", "Pictures"},
+		Options: []string{"Videos"},
 	}
 
-	ExitWrapper(survey.AskOne(prompt, &media))
+	exitWrapper(survey.AskOne(prompt, &media))
 
 	return media
 }
@@ -64,7 +73,7 @@ func VideoProviderPrompt(providers []string) string {
 		Options: providers,
 	}
 
-	ExitWrapper(survey.AskOne(prompt, &provider))
+	exitWrapper(survey.AskOne(prompt, &provider))
 
 	return provider
 }
@@ -104,9 +113,13 @@ func SelectResults(results int) []int {
 	question := &survey.Question{
 		Prompt: &survey.Input{
 			Message: "Select resources (#):",
-			Help:    "Enter the number corresponding to the resource you want to download. You can use multiple numbers separated by commas.",
+			Help:    "Enter the number related to the resource you want to download. You can use multiple numbers separated by commas. Type c to cancel.",
 		},
 		Validate: func(val interface{}) error {
+			if val.(string) == "c" {
+				return nil
+			}
+
 			numbers := strings.Split(val.(string), ",")
 
 			for _, num := range numbers {
@@ -124,7 +137,11 @@ func SelectResults(results int) []int {
 		},
 	}
 
-	ExitWrapper(survey.Ask([]*survey.Question{question}, &selected))
+	exitWrapper(survey.Ask([]*survey.Question{question}, &selected))
+
+	if selected == "c" {
+		return choices
+	}
 
 	for _, num := range strings.Split(selected, ",") {
 		num, err := strconv.Atoi(strings.TrimSpace(num))
@@ -138,6 +155,23 @@ func SelectResults(results int) []int {
 	return choices
 }
 
-func UrlSafeSearchPrompt() string {
-	return strings.ReplaceAll(Prompt("Enter a search term"), " ", "+")
+func ConfirmSelectDownloadsPrompt(options []string) []string {
+	mediaSelected := []string{}
+	question := survey.Question{
+		Prompt: &survey.MultiSelect{
+			Message: "Confirm the content you want to download:",
+			Options: options,
+		},
+		Validate: func(val interface{}) error {
+			if len(val.([]survey.OptionAnswer)) == 0 {
+				return fmt.Errorf("you must select at least one option")
+			}
+
+			return nil
+		},
+	}
+
+	exitWrapper(survey.Ask([]*survey.Question{&question}, &mediaSelected))
+
+	return mediaSelected
 }

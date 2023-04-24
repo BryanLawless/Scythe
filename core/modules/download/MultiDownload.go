@@ -15,31 +15,31 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func StartMultiDownload(ctx context.Context, c *DownloadConfig) error {
-	directory := utility.PartialDirectory(c.Directory, c.Filename, c.Workers)
+func MultiDownload(ctx context.Context, d *Download) error {
+	directory := utility.PartialDirectory(d.Directory, d.Filename, d.Workers)
 
 	if err := os.MkdirAll(directory, 0755); err != nil {
 		return err
 	}
 
 	tasks := createTasks(OperateTasks{
-		URL:           c.URL,
-		Size:          c.ContentLength / int64(c.Workers),
-		Workers:       c.Workers,
-		Filename:      c.Filename,
+		URL:           d.URL,
+		Size:          d.ContentLength / int64(d.Workers),
+		Workers:       d.Workers,
+		Filename:      d.Filename,
 		Directory:     directory,
-		ContentLength: c.ContentLength,
+		ContentLength: d.ContentLength,
 	})
 
 	if err := parallelDownload(ctx, &ParallelDownloadConfig{
 		Tasks:         tasks,
 		Directory:     directory,
-		ContentLength: c.ContentLength,
+		ContentLength: d.ContentLength,
 	}); err != nil {
 		return err
 	}
 
-	return bindChunks(c, directory)
+	return bindChunks(d, directory)
 }
 
 func createTasks(c OperateTasks) []*Task {
@@ -102,14 +102,14 @@ func parallelDownload(ctx context.Context, c *ParallelDownloadConfig) error {
 				return err
 			}
 
-			return task.download(ctx, req, bar)
+			return task.downloadWorker(ctx, req, bar)
 		})
 	}
 
 	return eg.Wait()
 }
 
-func (t *Task) download(ctx context.Context, req *http.Request, bar *pb.ProgressBar) error {
+func (t *Task) downloadWorker(ctx context.Context, req *http.Request, bar *pb.ProgressBar) error {
 	request, _, err := common.MakeRequest(ctx, common.Request{
 		ParseBody:           false,
 		RandomAgent:         true,
@@ -136,8 +136,8 @@ func (t *Task) download(ctx context.Context, req *http.Request, bar *pb.Progress
 	return nil
 }
 
-func bindChunks(c *DownloadConfig, partialDir string) error {
-	destination := filepath.Join(c.Directory, c.Filename)
+func bindChunks(d *Download, partialDir string) error {
+	destination := filepath.Join(d.Directory, d.Filename)
 	file, err := os.Create(destination)
 	if err != nil {
 		return err
@@ -145,7 +145,7 @@ func bindChunks(c *DownloadConfig, partialDir string) error {
 
 	defer file.Close()
 
-	bar := pb.Start64(c.ContentLength)
+	bar := pb.Start64(d.ContentLength)
 
 	copier := func(name string) error {
 		chunk, err := os.Open(name)
@@ -167,8 +167,8 @@ func bindChunks(c *DownloadConfig, partialDir string) error {
 		return nil
 	}
 
-	for i := 0; i < c.Workers; i++ {
-		name := fmt.Sprintf("%s/%s.%d.%d", partialDir, c.Filename, c.Workers, i)
+	for i := 0; i < d.Workers; i++ {
+		name := fmt.Sprintf("%s/%s.%d.%d", partialDir, d.Filename, d.Workers, i)
 		if err := copier(name); err != nil {
 			return err
 		}

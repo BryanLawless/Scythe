@@ -10,12 +10,12 @@ func (h *Handler) VideoHandler(ctx context.Context) error {
 	videoProviders := providers.ListProvidersByCategory("video")
 	chosenProvider := utility.VideoProviderPrompt(videoProviders)
 
-	links, err := providers.Start(ctx, chosenProvider)
+	selectedMedia, err := providers.Start(ctx, chosenProvider)
 	if err != nil {
 		return err
 	}
 
-	h.URLs = append(h.URLs, links...)
+	h.Media = append(h.Media, selectedMedia...)
 
 	return nil
 }

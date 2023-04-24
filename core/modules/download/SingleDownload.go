@@ -9,7 +9,7 @@ import (
 	"github.com/cheggaaa/pb/v3"
 )
 
-func SingleDownload(ctx context.Context, c *DownloadConfig) error {
+func SingleDownload(ctx context.Context, c *Download) error {
 	request, _, err := common.MakeRequest(ctx, common.Request{
 		URL:         c.URL,
 		Method:      "GET",
@@ -21,7 +21,7 @@ func SingleDownload(ctx context.Context, c *DownloadConfig) error {
 		return err
 	}
 
-	output, err := os.OpenFile("video.mp4", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	output, err := os.OpenFile(c.Filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}
