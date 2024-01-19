@@ -38,6 +38,35 @@ func SearchPrompt() string {
 	return text
 }
 
+func FilenamePrompt() string {
+	filename := ""
+	prompt := &survey.Question{
+		Prompt: &survey.Input{
+			Message: "Filename:",
+			Help:    "Enter the filename you would like to use, or hit 'ENTER' for a random filename.",
+		},
+		Validate: func(val interface{}) error {
+			if str, ok := val.(string); !ok || len(str) > 64 {
+				return fmt.Errorf("filename must be less than 64 characters long")
+			}
+
+			if strings.Contains(val.(string), ".") {
+				return fmt.Errorf("filename cannot contain extensions, this is automatically added")
+			}
+
+			return nil
+		},
+	}
+
+	exitWrapper(survey.Ask([]*survey.Question{prompt}, &filename))
+
+	if filename == "" {
+		filename = RandomString(16)
+	}
+
+	return filename
+}
+
 func UrlSafeSearchPrompt() string {
 	return strings.ReplaceAll(SearchPrompt(), " ", "+")
 }
@@ -46,7 +75,7 @@ func StartActionPrompt() string {
 	option := ""
 	prompt := &survey.Select{
 		Message: "Select an action:",
-		Options: []string{"Browse", "Download", "Exit"},
+		Options: []string{"Browse", "Download", "Add Raw", "Exit"},
 	}
 
 	exitWrapper(survey.AskOne(prompt, &option))
@@ -174,4 +203,36 @@ func ConfirmSelectDownloadsPrompt(options []string) []string {
 	exitWrapper(survey.Ask([]*survey.Question{&question}, &mediaSelected))
 
 	return mediaSelected
+}
+
+func AddRawPrompt() []string {
+	text := ""
+	links := []string{}
+	prompt := &survey.Question{
+		Prompt: &survey.Input{
+			Message: "Enter raw URL's:",
+			Help:    "Enter the raw URL's you want to download.",
+		},
+		Validate: func(val interface{}) error {
+			if str, ok := val.(string); ok {
+				links = strings.Split(str, ",")
+
+				if len(links) == 0 {
+					return fmt.Errorf("you must enter at least one link")
+				}
+
+				for _, link := range links {
+					if len(link) > 2048 {
+						return fmt.Errorf("links must be less than 2048 characters long")
+					}
+				}
+			}
+
+			return nil
+		},
+	}
+
+	exitWrapper(survey.Ask([]*survey.Question{prompt}, &text))
+
+	return links
 }

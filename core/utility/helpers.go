@@ -2,7 +2,10 @@ package utility
 
 import (
 	"Scythe/core/common"
+	"errors"
 	"fmt"
+	"math/rand"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -110,13 +113,15 @@ func CutLongText(text string, max int) string {
 	return text
 }
 
-func GetExtensionFromMime(mime string) string {
-	types := MatchOne(`(?i)(\w+)/(\w+);`, mime)
-	if types == nil {
-		return ""
+func RandomString(length int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	random := make([]rune, length)
+	for i := range random {
+		random[i] = letters[rand.Intn(len(letters))]
 	}
 
-	return types[2]
+	return string(random)
 }
 
 func FilenameSafe(title string) string {
@@ -145,4 +150,52 @@ func MediaToResults(media []common.Media) []string {
 	}
 
 	return results
+}
+
+func RemovePeriods(str string) string {
+	return strings.ReplaceAll(str, ".", "")
+}
+
+func GetFileNameFromUrl(rawUrl string) (string, error) {
+	url, err := url.Parse(rawUrl)
+	if err != nil {
+		return "", err
+	}
+
+	path := url.Path
+	segments := strings.Split(path, "/")
+
+	if len(segments) == 0 {
+		return "", errors.New("invalid URL")
+	}
+
+	return segments[len(segments)-1], nil
+}
+
+func GetFileExtensionFromMime(contentType string) string {
+	parts := strings.Split(contentType, ";")
+	mediaType := strings.TrimSpace(parts[0])
+
+	typeParts := strings.Split(mediaType, "/")
+
+	extension := typeParts[len(typeParts)-1]
+
+	return extension
+}
+
+func GetCategoryFromMimeType(mimeType string) string {
+	extension := GetFileExtensionFromMime(mimeType)
+
+	switch extension {
+	case "mp4", "webm", "mkv", "flv", "avi", "mov", "wmv", "mpg", "mpeg":
+		return "video"
+	case "mp3", "wav", "ogg", "flac", "m4a", "wma", "aac":
+		return "audio"
+	case "jpg", "jpeg", "png", "gif", "bmp", "svg", "webp":
+		return "image"
+	case "pdf", "epub", "mobi", "azw", "azw3", "djvu", "fb2", "prc", "doc", "docx", "txt":
+		return "document"
+	default:
+		return "unknown"
+	}
 }

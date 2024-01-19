@@ -32,8 +32,6 @@ func SingleDownload(ctx context.Context, c *Download) error {
 
 	defer bar.Finish()
 
-	//bar.SetCurrent(0)
-
 	rd := bar.NewProxyReader(request.Response.Body)
 	if _, err := io.Copy(output, rd); err != nil {
 		return err

@@ -65,7 +65,8 @@ func (y *youtubeProvider) Start(ctx context.Context) ([]common.Media, error) {
 		}
 
 		formats := video.Formats.WithAudioChannels()
-		extension := utility.GetExtensionFromMime(formats[0].MimeType)
+		extension := utility.GetFileExtensionFromMime(formats[0].MimeType)
+
 		sourceLink, err := y.Client.GetStreamURL(video, &formats[0])
 		if err != nil {
 			return nil, fmt.Errorf("error getting video link: %w", err)

@@ -4,6 +4,7 @@ import (
 	"Scythe/core/common"
 	"Scythe/core/utility"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -56,6 +57,46 @@ func (h *Handler) BrowseHandler(ctx context.Context) error {
 	return err
 }
 
+func (h *Handler) AddRawHandler(ctx context.Context) error {
+	mediaList := []common.Media{}
+	media := utility.AddRawPrompt()
+
+	for _, m := range media {
+		request, _, err := common.MakeRequest(ctx, common.Request{
+			URL:         m,
+			Method:      "GET",
+			ParseBody:   false,
+			RandomAgent: true,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		contentType := request.Response.Header.Get("Content-Type")
+		extension := utility.GetFileExtensionFromMime(contentType)
+		category := utility.GetCategoryFromMimeType(contentType)
+		filename := utility.FilenamePrompt()
+
+		utility.WriteToConsole(fmt.Sprintf(
+			"Resource '%s' category %s added to download list.",
+			filename, category), "success")
+
+		mediaList = append(mediaList, common.Media{
+			URL:       m,
+			Name:      filename,
+			Provider:  "raw",
+			Category:  category,
+			Extension: extension,
+			SourceURL: m,
+		})
+	}
+
+	h.Media = append(h.Media, mediaList...)
+
+	return nil
+}
+
 func (h *Handler) HandleCommands(ctx context.Context) {
 	action := utility.StartActionPrompt()
 
@@ -65,7 +106,10 @@ func (h *Handler) HandleCommands(ctx context.Context) {
 		err = h.BrowseHandler(ctx)
 	case "download":
 		err = h.DownloadHandler(ctx)
+	case "add raw":
+		err = h.AddRawHandler(ctx)
 	case "exit":
+		utility.WriteToConsole("Exiting...", "info")
 		os.Exit(0)
 	}
 

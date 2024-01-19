@@ -1,3 +1,3 @@
 # Scythe
 
-Coming Soon
+Coming Soon! Version 0.0.2
